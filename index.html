@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>qbit terminal microscript</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100;0,9..40,200;0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;0,9..40,900;0,9..40,1000;1,9..40,100;1,9..40,200;1,9..40,300;1,9..40,400;1,9..40,500;1,9..40,600;1,9..40,700;1,9..40,900&family=JetBrains+Mono:wght@100;200;300;400;500;600;700;800&family=Montserrat:wght@100;300;400;500;600;700;800;900&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;1,100;1,200;1,300;1,400;1,500;1,700;1,900&family=Roboto:ital,wght@0,300;1,400;1,500&family=VT323&family=Work+Sans:wght@100;200;300;400;500;600;700;800;900&display=swap");
+      @import url("https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100;0,9..40,200;0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;0,9..40,900;0,9..40,1000;1,9..40,100;1,9..40,200;1,9..40,300;1,9..40,400;1,9..40,500;1,9..40,600;1,9..40,700;1,9..40,900&family=IBM+Plex+Mono:wght@200;300;400;500;600&family=JetBrains+Mono:wght@100;200;300;400;500;600;700;800&family=Montserrat:wght@100;300;400;500;600;700;800;900&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;1,100;1,200;1,300;1,400;1,500;1,700;1,900&family=Roboto:ital,wght@0,300;1,400;1,500&family=VT323&family=Work+Sans:wght@100;200;300;400;500;600;700;800;900&display=swap");
+      body {
+        font-family: "IBM Plex Mono", monospace;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        color: orange;
+        background-color: rgb(27, 12, 0);
+      }
+      h1 {
+        margin-left: 20px;
+      }
+      #editor {
+        font-size: 15px;
+        font-weight: 600;
+        color: orange;
+        border: #ccc 1px solid;
+        margin: 20px;
+        height: 500px;
+        padding: 10px;
+        background-color: rgb(27, 12, 0);
+      }
+      .output {
+        height: 200px;
+        margin: 20px;
+        border-top: 1px solid #ccc;
+        overflow: auto;
+        padding: 10px;
+        font-size: 20px;
+        background-color: orange;
+        color: black;
+        display: flex;
+        flex-direction: column;
+      }
+
+      button {
+        position: absolute;
+        top: 50px;
+        right: 20px;
+        width: 150px;
+        height: 50px;
+        background-color: orange;
+        border-radius: 4px;
+        font-weight: 700;
+        font-size: 16px;
+      }
+      h2 {
+        font-size: 15px;
+        margin: 0;
+      }
+      @media only screen and (max-width: 700px) {
+        button {
+          top: 60px;
+          right: 8px;
+          height: 40px;
+          width: 80px;
+        }
+        h1 {
+          font-size: 28px;
+          line-height: 35px;
+          margin: 10px;
+        }
+        #editor {
+          margin: 10px;
+        }
+        .output {
+          margin: 10px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>
+        Q-bit V 0.0.1 terminal <br />
+        (^_^)
+      </h1>
+    </header>
+    <button onclick="runCode()">Run</button>
+
+    <textarea spellcheck="false" id="editor" contenteditable="true">
+      // Start typing your JavaScript code here...
+    </textarea>
+    <div class="output">
+      <h2>console output >>></h2>
+      <h2 id="output"></h2>
+    </div>
+    <script>
+      //var connection = new WebSocket("ws://" + location.hostname + ":81/");
+      function runCode() {
+        var code = document.getElementById("editor").value;
+        var outputDiv = document.getElementById("output");
+        try {
+          // Creating a new script element to execute the code
+          var script = document.createElement("script");
+          script.textContent = `
+          // Intercept console.log
+          var logs = [];
+          var originalLog = console.log;
+          console.log = function() {
+            logs.push(Array.from(arguments).join(' '));
+          };
+          // Run the code
+          try {
+            ${code}
+          } catch (e) {
+            logs.push("Error: " + e);
+          }
+          // Display logs in the output div
+          var output = document.getElementById("output");
+          logs.forEach(function(log) {
+            var logItem = document.createElement('div'); // or 'li' for list items
+            logItem.classList.add('logItem');
+            logItem.textContent = log;
+            output.appendChild(logItem);
+            //connection.send(log);
+          });`;
+          // Clear previous output
+          outputDiv.innerHTML = "";
+          // Run the code by appending the script to the output element
+          outputDiv.appendChild(script);
+        } catch (e) {
+          // Handle any errors that occur during code execution
+          outputDiv.innerText = "Error: " + e;
+        }
+      }
+    </script>
+  </body>
+</html>
