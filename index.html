@@ -1,50 +1,144 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ESP32 BLE Control</title>
-</head>
-<body>
-    <button id="connectButton">Connect to ESP32</button>
-    <button id="toggleButton">Toggle LED</button>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Arduino Control Panel</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+      }
+      header {
+        background-color: #333;
+        color: #fff;
+        padding: 10px 0;
+        text-align: center;
+      }
+      .container {
+        max-width: 600px;
+        margin: 20px auto;
+        padding: 0 20px;
+      }
+      form {
+        margin-bottom: 20px;
+      }
+      form input[type="text"],
+      form button {
+        padding: 10px;
+        margin-right: 10px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 16px;
+      }
+      form button {
+        background-color: #4caf50;
+        color: white;
+        cursor: pointer;
+      }
+      form button:hover {
+        background-color: #45a049;
+      }
+      #response {
+        border: 1px solid #ccc;
+        padding: 10px;
+        height: 200px;
+        overflow-y: scroll;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Arduino Control Panel</h1>
+    </header>
+    <button onclick="connectToArduino();">connect</button>
+    <div class="container">
+      <form id="commandForm">
+        <label for="command">Enter command:</label>
+        <input type="text" id="command" name="command" required />
+        <button type="submit">Send</button>
+      </form>
+      <div id="response">
+        <h2>Arduino Responses:</h2>
+        <ul id="responseList"></ul>
+      </div>
+    </div>
 
     <script>
-        let bleDevice;
-        let bleServer;
-        let bleCharacteristic;
+      const responseBuffer = []; // Create an array to buffer received bytes
+      let port = null;
 
-        document.getElementById("connectButton").addEventListener("click", async () => {
-            try {
-                bleDevice = await navigator.bluetooth.requestDevice({
-                    filters: [{ services: [0x6E400001] }] // Replace with your service UUID
-                });
+      async function connectToArduino() {
+        try {
+          port = await navigator.serial.requestPort();
+          await port.open({ baudRate: 9600 });
+          console.log("Serial port opened successfully.");
 
-                bleServer = await bleDevice.gatt.connect();
-                const service = await bleServer.getPrimaryService(0x6E400001); // Replace with your service UUID
-                bleCharacteristic = await service.getCharacteristic(0x6E400003); // Replace with your characteristic UUID
+          readFromArduino(); // Start reading from the serial port
+        } catch (error) {
+          console.error("Error:", error);
+        }
+      }
 
-                console.log("Connected to ESP32");
-            } catch (error) {
-                console.error("Error connecting:", error);
+      async function sendCommandToArduino(command) {
+        try {
+          if (!port) {
+            console.error("Serial port is not open.");
+            return;
+          }
+
+          const writer = port.writable.getWriter();
+          await writer.write(new TextEncoder().encode(command)); // Convert command to ArrayBuffer
+          writer.releaseLock();
+        } catch (error) {
+          console.error("Error:", error);
+        }
+      }
+
+      async function readFromArduino() {
+        try {
+          const reader = port.readable.getReader();
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+
+            // Convert the received bytes to string and append to the buffer
+            responseBuffer.push(...value);
+
+            // Check for newline character (13,10) to process complete messages
+            while (responseBuffer.includes(13) && responseBuffer.includes(10)) {
+              const newlineIndex = responseBuffer.indexOf(13);
+              const responseString = new TextDecoder().decode(
+                Uint8Array.from(responseBuffer.slice(0, newlineIndex))
+              );
+              appendResponse(responseString);
+              responseBuffer.splice(0, newlineIndex + 2); // Remove the processed message from the buffer (including newline characters)
             }
+          }
+        } catch (error) {
+          console.error("Error:", error);
+        }
+      }
+
+      document
+        .getElementById("commandForm")
+        .addEventListener("submit", function (event) {
+          event.preventDefault();
+          const commandInput = document.getElementById("command");
+          const command = commandInput.value;
+
+          sendCommandToArduino(command);
+          commandInput.value = "";
         });
 
-        document.getElementById("toggleButton").addEventListener("click", async () => {
-            if (!bleCharacteristic) {
-                console.error("Not connected to ESP32");
-                return;
-            }
+      const responseList = document.getElementById("responseList");
 
-            try {
-                const message = "read_LED";
-                await bleCharacteristic.writeValue(new TextEncoder().encode(message));
-
-                console.log("Message sent:", message);
-            } catch (error) {
-                console.error("Error sending message:", error);
-            }
-        });
+      function appendResponse(response) {
+        const li = document.createElement("li");
+        li.textContent = response;
+        responseList.appendChild(li);
+      }
     </script>
-</body>
+  </body>
 </html>
